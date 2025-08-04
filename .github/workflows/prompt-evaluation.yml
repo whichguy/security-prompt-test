@@ -8,11 +8,17 @@ on:
       - '**/*prompt*.txt'
       - 'prompts/**'
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 jobs:
   evaluate-prompts:
     uses: whichguy/prompt-expert-bank/.github/workflows/evaluate-prompts.yml@main
     with:
       pr-number: ${{ github.event.pull_request.number }}
+      repository: ${{ github.repository }}
     secrets:
       github-token: ${{ secrets.GITHUB_TOKEN }}
       anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
