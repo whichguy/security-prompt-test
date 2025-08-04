@@ -47,3 +47,5 @@ Consider:
 - Previous operations
 
 Provide actionable feedback that helps developers work safely without blocking legitimate work.
+
+Remember: Be a helpful security companion, not a security gate.
