@@ -1,0 +1,33 @@
+version: "1.0"
+
+# Expert bank configuration
+expert_bank:
+  repository: "whichguy/prompt-expert-bank"
+  
+  # Map file patterns to experts
+  expert_mapping:
+    - pattern: "**/*security*|**/*command*|**/*shell*"
+      expert: "security_command_expert"
+      
+    - pattern: "**/*financial*|**/*budget*|**/*money*|**/*invest*"
+      expert: "financial_analysis_expert"
+      
+    - pattern: "**/*gas*|**/*script*|**/*sheets*|**/*apps*"
+      expert: "gas_javascript_expert"
+      
+    - pattern: "**/*data*|**/*analysis*|**/*analytics*"
+      expert: "data_analysis_expert"
+      
+    - pattern: "**"
+      expert: "general_purpose_expert"
+
+# Test configuration
+test_settings:
+  scenarios_per_prompt: 5
+  max_test_time: 300  # seconds
+  use_local_test_cases: true  # Use test-cases.md if available
+  
+# Evaluation settings
+evaluation:
+  min_improvement_for_approval: 15  # percentage
+  confidence_threshold: 75  # percentage
