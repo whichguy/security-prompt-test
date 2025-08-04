@@ -23,9 +23,22 @@ jobs:
         with:
           fetch-depth: 0
       
+      - name: Create directories
+        run: |
+          mkdir -p .claude-ab-tests/test-results
+      
       - name: Clone Expert Bank
         run: |
           git clone https://github.com/whichguy/prompt-expert-bank.git /tmp/expert-bank
+          
+      - name: Debug - Show structure
+        run: |
+          echo "=== Repository structure ==="
+          ls -la
+          echo "=== Expert bank structure ==="
+          ls -la /tmp/expert-bank/prompt-experts/
+          echo "=== Changed files ==="
+          git diff --name-only origin/${{ github.base_ref }}...HEAD
       
       - name: Run A/B Test with Claude
         id: test
@@ -50,7 +63,8 @@ jobs:
             ## Process:
             
             1. First, identify what changed:
-               git diff origin/${{ github.base_ref }}...HEAD --name-only | grep -E '\.(md|prompt|txt)$'
+               Run: git diff origin/${{ github.base_ref }}...HEAD --name-only | grep -E '\.(md|prompt|txt)$'
+               Look for files in prompts/ directory
             
             2. Based on file content, select expert:
                - Security/Command terms → security_command_expert.md
@@ -65,13 +79,25 @@ jobs:
             
             5. Score outputs using expert's weighted competencies
             
-            6. Generate report with:
+            6. Generate report and save to .claude-ab-tests/test-results/report.md with:
                - Overall recommendation (APPROVE/REJECT/NEEDS_REVISION)
                - Competency scores with specific examples
                - Key improvements and issues
                - Actionable feedback
             
+            IMPORTANT: Use str_replace_editor to create the report file at .claude-ab-tests/test-results/report.md
+            
             Focus on OUTPUT QUALITY, not prompt structure!
+      
+      - name: Check if report exists
+        run: |
+          if [ -f .claude-ab-tests/test-results/report.md ]; then
+            echo "Report found!"
+            cat .claude-ab-tests/test-results/report.md
+          else
+            echo "No report found at expected location"
+            find . -name "report.md" -type f
+          fi
       
       - name: Post Results to PR
         if: always()
@@ -81,8 +107,11 @@ jobs:
             const fs = require('fs');
             const reportPath = '.claude-ab-tests/test-results/report.md';
             
+            console.log('Checking for report at:', reportPath);
+            
             if (fs.existsSync(reportPath)) {
               const report = fs.readFileSync(reportPath, 'utf8');
+              console.log('Report found, length:', report.length);
               
               // Extract key info
               const rec = report.match(/Recommendation:\s*\*?\*?([^*\n]+)/)?.[1]?.trim() || 'UNKNOWN';
@@ -127,6 +156,16 @@ jobs:
                 description: `Prompt Quality: ${rec}`,
                 context: 'prompt-ab-test'
               });
+            } else {
+              console.log('No report found at', reportPath);
+              
+              // Post a comment about the issue
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.name,
+                body: '⚠️ A/B test completed but no report was generated. Check the action logs for details.'
+              });
             }
       
       - name: Upload Results
@@ -135,3 +174,4 @@ jobs:
         with:
           name: ab-test-results
           path: .claude-ab-tests/test-results/
+          if-no-files-found: warn
