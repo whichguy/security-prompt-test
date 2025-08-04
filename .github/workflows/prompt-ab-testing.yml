@@ -34,7 +34,8 @@ jobs:
           model: claude-3-5-sonnet-20241022
           max_turns: 3
           timeout_minutes: 10
-          allowed_tools: ['str_replace_editor']
+          allowed_tools: |
+            - str_replace_editor
           prompt: |
             You are conducting a Result-Focused Prompt A/B Test.
             
