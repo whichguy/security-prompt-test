@@ -1,0 +1,38 @@
+name: Debug PromptExpert
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  debug:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '@promptexpert')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug info
+        run: |
+          echo "🔍 DEBUG: PromptExpert trigger detected!"
+          echo "Comment author: ${{ github.event.comment.user.login }}"
+          echo "PR number: ${{ github.event.issue.number }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Comment body:"
+          echo "${{ github.event.comment.body }}"
+          echo ""
+          
+          # Test regex parsing
+          COMMENT='${{ github.event.comment.body }}'
+          echo "Testing regex pattern..."
+          if [[ "$COMMENT" =~ @promptexpert[[:space:]]+([a-zA-Z-]+)[[:space:]]+(.*) ]]; then
+            echo "✅ Regex matched!"
+            echo "Expert: ${BASH_REMATCH[1]}"
+            echo "Instructions: ${BASH_REMATCH[2]}"
+          else
+            echo "❌ Regex did not match"
+            echo "Comment content: '$COMMENT'"
+          fi
+          
+      - name: Check secrets
+        env:
+          ANTHROPIC_KEY_SET: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+        run: |
+          echo "ANTHROPIC_API_KEY configured: $ANTHROPIC_KEY_SET"
