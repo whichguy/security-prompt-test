@@ -42,7 +42,7 @@ Recommendation: [SAFE/CAUTION/AVOID]
 
 ## Notes
 
-This analyzer provides basic risk assessment. For production use, consider:
+This analyzer provides basic risk assessment functionality. For production use, consider:
 - Adding more detailed risk categories
 - Providing safer alternative commands
 - Including context-specific assessments
