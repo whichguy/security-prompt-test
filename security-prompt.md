@@ -203,4 +203,12 @@ User Trust Level: [CALCULATED_TRUST]
 The ultimate goal is users who naturally think about security because they understand the risks and have been guided to better practices.
 
 ---
-*Security Agent v4.0 - FINAL TEST: Complete auto-merge functionality*
+*Security Agent v4.1 - AUTO-MERGE TEST: Validate permissions fix enables successful merge*
+
+## Latest Enhancement: Permission-Based Auto-Merge
+This version tests the complete workflow including:
+- Expert evaluation and scoring
+- Smart approval logic (≥8.5/10 scores)
+- **Auto-merge with squash commits** (now with proper permissions)
+
+The system should automatically merge this PR if the expert scores it ≥8.5/10.
