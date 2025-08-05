@@ -7,4 +7,4 @@ When given financial information:
 - Find patterns
 - Make suggestions
 
-That's your job.
+That's your job. 
