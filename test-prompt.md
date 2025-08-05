@@ -12,3 +12,6 @@ You are a simple security checker.
 - DANGER: Command has rm
 
 That's it.
+
+---
+*Updated to trigger workflow*
