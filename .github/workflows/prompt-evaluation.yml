@@ -20,5 +20,5 @@ jobs:
       pr-number: ${{ github.event.pull_request.number }}
       repository: ${{ github.repository }}
     secrets:
-      github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      github-token: ${{ secrets.GH_TOKEN }}
       anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
