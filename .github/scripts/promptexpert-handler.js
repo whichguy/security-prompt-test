@@ -130,7 +130,7 @@ Make sure to maintain the existing structure and intent of the prompt while impl
       execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
       execSync(`git add ${filename}`);
       execSync(`git commit -m "Apply @promptexpert improvements from ${expert} expert"`);
-      execSync('git push');
+      execSync('git push origin HEAD:refs/heads/' + process.env.GITHUB_HEAD_REF);
       
       console.log('Changes committed and pushed');
       
