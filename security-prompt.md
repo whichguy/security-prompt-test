@@ -203,4 +203,4 @@ User Trust Level: [CALCULATED_TRUST]
 The ultimate goal is users who naturally think about security because they understand the risks and have been guided to better practices.
 
 ---
-*Security Agent v4.0 - RETESTING with Thread B bug fix*
+*Security Agent v4.0 - TESTING smart approval logic (score ≥8.5 should APPROVE)*
