@@ -1,0 +1,242 @@
+name: PromptExpert Robust
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  process-expert-command:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '@promptexpert')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Initial status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🔄 **PromptExpert Starting...**\n\nProcessing your request, please wait...'
+            });
+
+      - name: Parse command
+        id: parse
+        run: |
+          COMMENT='${{ github.event.comment.body }}'
+          
+          echo "=== PARSING COMMAND ==="
+          echo "Comment: $COMMENT"
+          
+          # Extract expert name and instructions
+          # Format: @promptexpert <expert> <instructions...>
+          if [[ "$COMMENT" =~ @promptexpert[[:space:]]+([a-zA-Z-]+)[[:space:]]+(.*) ]]; then
+            EXPERT="${BASH_REMATCH[1]}"
+            INSTRUCTIONS="${BASH_REMATCH[2]}"
+            
+            echo "expert=$EXPERT" >> $GITHUB_OUTPUT
+            echo "instructions=$INSTRUCTIONS" >> $GITHUB_OUTPUT
+            echo "valid=true" >> $GITHUB_OUTPUT
+            
+            echo "✅ Parsed successfully:"
+            echo "  Expert: $EXPERT"
+            echo "  Instructions: $INSTRUCTIONS"
+          else
+            echo "❌ Parse failed - invalid format"
+            echo "valid=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Report parsing result
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const valid = '${{ steps.parse.outputs.valid }}';
+            const expert = '${{ steps.parse.outputs.expert }}';
+            const instructions = '${{ steps.parse.outputs.instructions }}';
+            
+            if (valid === 'true') {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `✅ **Command Parsed Successfully**\n\n**Expert**: ${expert}\n**Instructions**: ${instructions}\n\nNow processing...`
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `❌ **Command Parse Failed**\n\n**Expected format:**\n\`@promptexpert <expert> <instructions>\`\n\n**Your comment:**\n\`${{ github.event.comment.body }}\``
+              });
+            }
+          
+      - name: Checkout PR
+        if: steps.parse.outputs.valid == 'true'
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ format('refs/pull/{0}/head', github.event.issue.number) }}
+          fetch-depth: 0
+          
+      - name: Setup environment
+        if: steps.parse.outputs.valid == 'true'
+        run: |
+          echo "=== ENVIRONMENT SETUP ==="
+          npm init -y
+          npm install @anthropic-ai/sdk @octokit/rest
+          echo "✅ Dependencies installed"
+          
+      - name: Test API access
+        if: steps.parse.outputs.valid == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "=== TESTING API ACCESS ==="
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "❌ ANTHROPIC_API_KEY not set"
+            exit 1
+          else
+            echo "✅ ANTHROPIC_API_KEY is configured"
+          fi
+          
+      - name: Report progress
+        if: steps.parse.outputs.valid == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🔧 **Environment Ready**\n\nFetching PR context and expert definition...'
+            });
+          
+      - name: Gather context
+        if: steps.parse.outputs.valid == 'true'
+        id: context
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            console.log('=== GATHERING PR CONTEXT ===');
+            
+            try {
+              // Get PR details
+              const pr = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number
+              });
+              console.log('✅ Got PR details');
+              
+              // Get PR files
+              const files = await github.rest.pulls.listFiles({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number
+              });
+              console.log(`✅ Got ${files.data.length} changed files`);
+              
+              // Get recent comments
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number
+              });
+              console.log(`✅ Got ${comments.data.length} comments`);
+              
+              // Get commits
+              const commits = await github.rest.pulls.listCommits({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number
+              });
+              console.log(`✅ Got ${commits.data.length} commits`);
+              
+              // Save context
+              const context_data = {
+                pr: {
+                  title: pr.data.title,
+                  body: pr.data.body,
+                  state: pr.data.state,
+                  author: pr.data.user.login,
+                  created_at: pr.data.created_at,
+                  updated_at: pr.data.updated_at,
+                  base_branch: pr.data.base.ref,
+                  head_branch: pr.data.head.ref
+                },
+                files: files.data.map(f => ({
+                  filename: f.filename,
+                  status: f.status,
+                  additions: f.additions,
+                  deletions: f.deletions,
+                  changes: f.changes,
+                  patch: f.patch
+                })),
+                recent_comments: comments.data.slice(-5).map(c => ({
+                  author: c.user.login,
+                  body: c.body,
+                  created_at: c.created_at
+                })),
+                commits: commits.data.map(c => ({
+                  sha: c.sha,
+                  author: c.commit.author.name,
+                  message: c.commit.message,
+                  date: c.commit.author.date
+                }))
+              };
+              
+              fs.writeFileSync('pr-context.json', JSON.stringify(context_data, null, 2));
+              console.log('✅ Context saved to pr-context.json');
+              
+            } catch (error) {
+              console.error('❌ Error gathering context:', error);
+              throw error;
+            }
+            
+      - name: Process with expert (simplified)
+        if: steps.parse.outputs.valid == 'true'
+        env:
+          EXPERT: ${{ steps.parse.outputs.expert }}
+          INSTRUCTIONS: ${{ steps.parse.outputs.instructions }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              // Just post a simple response for now to test the flow
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## 🤖 ${process.env.EXPERT.charAt(0).toUpperCase() + process.env.EXPERT.slice(1)} Expert Response
+
+**Instructions received**: ${process.env.INSTRUCTIONS}
+
+**Status**: ✅ Workflow is working! 
+
+This is a simplified response to test the workflow. The full Claude integration will be restored once we confirm this basic flow works.
+
+**Next steps**: Full expert analysis coming soon...`
+              });
+            } catch (error) {
+              console.error('Error posting response:', error);
+              throw error;
+            }
+          
+      - name: Handle errors
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ **PromptExpert Error**\n\nThe workflow encountered an error. Please check the [workflow logs](https://github.com/${{ github.repository }}/actions) for details.'
+            });
